@@ -355,10 +355,11 @@ const validateTemplateConfig = () => {
     }
 
     // 模板变量预检查
-    const validVariables = ['date', 'city', 'weather', 'max_temperature', 'min_temperature',
-      'wind_direction', 'wind_scale', 'love_day', 'birthday_message', 'moment_copyrighting',
+    const validVariables = ['date', 'city', 'province', 'weather', 'max_temperature', 'min_temperature',
+      'wind_direction', 'wind_scale', 'aqi', 'pm25', 'love_day', 'marry_day', 'birthday_message', 'moment_copyrighting',
       'morning_greeting', 'evening_greeting', 'tian_weather', 'network_hot', 'today_courses',
-      'chinese_note', 'english_note']
+      'chinese_note', 'english_note', 'to_name', 'holidaytts', 'one_talk', 'talk_from',
+      'comprehensive_horoscope', 'wx_birthday_0', 'wx_birthday_1', 'wx_birthday_2', 'wx_birthday_3']
 
     const templateVars = template.desc.match(/\{\{([^}]+)\.DATA\}\}/g) || []
     templateVars.forEach(varMatch => {
@@ -415,12 +416,17 @@ const weatherService = {
 
         const forecast = weatherData.forecast[0]
         return {
+          province: data.cityInfo.parent || '',
           city: data.cityInfo.city,
           weather: forecast.type,
           max_temperature: forecast.high.replace(/高温/, '').replace('℃', '').trim(),
           min_temperature: forecast.low.replace(/低温/, '').replace('℃', '').trim(),
           wind_direction: forecast.fx,
           wind_scale: forecast.fl.replace(/级.*/, ''),
+          aqi: forecast.aqi != null ? String(forecast.aqi) : (weatherData.aqi || ''),
+          pm25: forecast.pm25 != null
+            ? String(forecast.pm25)
+            : (weatherData.pm25 != null ? String(weatherData.pm25) : ''),
           ganmao: weatherData.ganmao || ''
         }
       } else {
@@ -428,6 +434,69 @@ const weatherService = {
       }
     } catch (error) {
       return { error: `获取天气信息失败：${error.message}` }
+    }
+  }
+}
+
+/**
+ * 节假日 tts 服务（timor.tech，免费）
+ */
+const holidayService = {
+  async getHolidaytts() {
+    try {
+      const data = await withRetry(async () => {
+        return httpClient.get('https://timor.tech/api/holiday/tts')
+      }, '获取节假日提示')
+
+      if (data && data.code === 0 && data.tts) {
+        return { content: data.tts }
+      }
+      return { error: '获取节假日提示失败' }
+    } catch (error) {
+      return { error: `获取节假日提示失败：${error.message}` }
+    }
+  }
+}
+
+/**
+ * 星座综合运势服务（vvhan，免费）
+ */
+const horoscopeService = {
+  // 根据 horoscopeDate (MM-DD) 推算星座 type 编码（vvhan 使用中文星座名）
+  resolveZodiac(monthDay) {
+    if (!monthDay || !/^\d{2}-\d{2}$/.test(monthDay)) return null
+    const [m, d] = monthDay.split('-').map(Number)
+    const ranges = [
+      ['摩羯座', [12, 22], [1, 19]], ['水瓶座', [1, 20], [2, 18]],
+      ['双鱼座', [2, 19], [3, 20]], ['白羊座', [3, 21], [4, 19]],
+      ['金牛座', [4, 20], [5, 20]], ['双子座', [5, 21], [6, 21]],
+      ['巨蟹座', [6, 22], [7, 22]], ['狮子座', [7, 23], [8, 22]],
+      ['处女座', [8, 23], [9, 22]], ['天秤座', [9, 23], [10, 23]],
+      ['天蝎座', [10, 24], [11, 22]], ['射手座', [11, 23], [12, 21]]
+    ]
+    for (const [name, start, end] of ranges) {
+      if ((m === start[0] && d >= start[1]) || (m === end[0] && d <= end[1])) {
+        return name
+      }
+    }
+    return '摩羯座'
+  },
+
+  async getComprehensive(horoscopeDate) {
+    const zodiac = this.resolveZodiac(horoscopeDate)
+    if (!zodiac) return { error: '未配置 horoscopeDate' }
+
+    try {
+      const data = await withRetry(async () => {
+        return httpClient.get(`https://api.vvhan.com/api/horoscope?type=${encodeURIComponent(zodiac)}&time=today`)
+      }, '获取星座运势')
+
+      if (data && data.success && data.data && data.data.fortunetext && data.data.fortunetext.all) {
+        return { zodiac, content: `${zodiac}：${data.data.fortunetext.all}` }
+      }
+      return { error: '获取星座运势失败' }
+    } catch (error) {
+      return { error: `获取星座运势失败：${error.message}` }
     }
   }
 }
@@ -909,17 +978,22 @@ const dataAggregationService = {
 
       // 基础信息
       data.date = { value: dayjs().format('YYYY年MM月DD日') }
+      data.to_name = { value: user.name || '' }
+      data.province = { value: user.province || '' }
 
       // 获取基础天气信息（仅在配置了 weatherCityCode 时调用）
       if (user.weatherCityCode) {
         const weather = await weatherService.getWeather(user.city, user.weatherCityCode)
         if (!weather.error) {
+          if (!data.province.value && weather.province) data.province = { value: weather.province }
           data.city = { value: weather.city }
           data.weather = { value: weather.weather }
           data.max_temperature = { value: weather.max_temperature }
           data.min_temperature = { value: weather.min_temperature }
           data.wind_direction = { value: weather.wind_direction }
           data.wind_scale = { value: weather.wind_scale }
+          data.aqi = { value: weather.aqi || '暂无' }
+          data.pm25 = { value: weather.pm25 || '暂无' }
         }
       } else {
         // 没有配置 weatherCityCode 时，使用 city 字段作为基础信息
@@ -932,6 +1006,7 @@ const dataAggregationService = {
   
       // 生日和纪念日处理
       let birthdayMessage = ''
+      const wxBirthdays = []
       if (user.festivals && user.festivals.length > 0) {
         const sortedFestivals = dateUtils.sortBirthdayTime(user.festivals)
         const festivalsToShow = CONFIG.FESTIVALS_LIMIT > 0
@@ -942,13 +1017,42 @@ const dataAggregationService = {
         if (nextFestival && nextFestival.diffDay <= 30) {
           birthdayMessage = `距离${nextFestival.name}${nextFestival.useLunar ? '(农历)' : ''}还有${nextFestival.diffDay}天`
         }
+
+        // wx_birthday_0/1/...：每个生日/纪念日单独输出一行
+        festivalsToShow.forEach((f, idx) => {
+          const tag = f.useLunar ? '(农历)' : ''
+          const line = f.diffDay === 0
+            ? `今天是 ${f.name}${tag} 哦！`
+            : `距离 ${f.name}${tag} 还有 ${f.diffDay} 天`
+          wxBirthdays.push(line)
+          data[`wx_birthday_${idx}`] = { value: line }
+        })
       }
       data.birthday_message = { value: birthdayMessage }
+      // 兜底：未配置或不足两条时，给 wx_birthday_0/1 提供空值，避免微信模板渲染失败
+      if (!data.wx_birthday_0) data.wx_birthday_0 = { value: '' }
+      if (!data.wx_birthday_1) data.wx_birthday_1 = { value: '' }
 
       // 纪念日计算
       const specialDays = dateUtils.calculateSpecialDays(user.customizedDateList)
       for (const [key, days] of Object.entries(specialDays)) {
         data[key] = { value: days.toString() }
+      }
+
+      // 节假日提示
+      const holiday = await holidayService.getHolidaytts()
+      data.holidaytts = { value: holiday.error ? '' : holiday.content }
+
+      // 星座运势
+      if (user.horoscopeDate) {
+        const horoscope = await horoscopeService.getComprehensive(user.horoscopeDate)
+        if (!horoscope.error) {
+          data.comprehensive_horoscope = { value: horoscope.content }
+        } else {
+          data.comprehensive_horoscope = { value: '' }
+        }
+      } else {
+        data.comprehensive_horoscope = { value: '' }
       }
 
       // 获取每日一句
@@ -958,10 +1062,15 @@ const dataAggregationService = {
         data.chinese_note = { value: ciba.note }
       }
 
-      // 获取每日一言
+      // 获取每日一言：同时填充 moment_copyrighting 与 one_talk/talk_from
       const hitokoto = await hitokotoService.getHitokoto()
       if (!hitokoto.error) {
         data.moment_copyrighting = { value: hitokoto.content }
+        data.one_talk = { value: hitokoto.content }
+        data.talk_from = { value: hitokoto.from_who ? `${hitokoto.from_who}「${hitokoto.from}」` : hitokoto.from }
+      } else {
+        data.one_talk = { value: '' }
+        data.talk_from = { value: '' }
       }
 
       // 天行API - 早安心语（用户级配置）

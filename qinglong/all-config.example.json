@@ -1,5 +1,5 @@
 {
-  "_comment": "ALL_CONFIG 迁移模板 —— 基于旧版 config/index.cjs 的双用户配置改写而来。请将本文件内容粘贴为 GitHub Secret『ALL_CONFIG』的值，或写入青龙面板的环境变量。占位符均以 <REPLACE_*> 标识，发布前必须替换为真实值。强烈建议旧的 APP_SECRET 已在公开仓库出现，请到微信测试号后台重新生成。",
+  "_comment": "ALL_CONFIG 迁移模板。占位符均以 <REPLACE_*> 标识，发布前必须替换。templates 已对齐脚本扩展后支持的全量变量。",
 
   "APP_ID": "<REPLACE_APP_ID>",
   "APP_SECRET": "<REPLACE_APP_SECRET>",
@@ -16,12 +16,7 @@
     {
       "id": "0001",
       "title": "🌹 致最爱的人 · 每日心意",
-      "desc": "🗓️ {{date.DATA}}\n🏞️ 城市：{{city.DATA}}\n☁️ 天气：{{weather.DATA}}\n🌡️ 气温：{{min_temperature.DATA}}℃ ~ {{max_temperature.DATA}}℃\n🌬️ 风向：{{wind_direction.DATA}} {{wind_scale.DATA}}级\n\n� 今天是我们相爱的第 {{love_day.DATA}} 天\n💌 {{birthday_message.DATA}}\n\n📖 每日一句\n{{english_note.DATA}}\n{{chinese_note.DATA}}\n\n💞 {{moment_copyrighting.DATA}}"
-    },
-    {
-      "id": "0002",
-      "title": "🌞 早安 · {{date.DATA}}",
-      "desc": "🏞️ {{city.DATA}}　☁️ {{weather.DATA}}　🌡️ {{min_temperature.DATA}}~{{max_temperature.DATA}}℃\n🌬️ {{wind_direction.DATA}} {{wind_scale.DATA}}级\n\n💘 相伴第 {{love_day.DATA}} 天\n💌 {{birthday_message.DATA}}\n\n📖 {{english_note.DATA}}\n　 {{chinese_note.DATA}}\n\n💞 {{moment_copyrighting.DATA}}"
+      "desc": "�‍♀️ {{to_name.DATA}} 🌹\n�🗓️ {{date.DATA}}\n城市🏞️：{{province.DATA}}{{city.DATA}}\n天气☁️：{{weather.DATA}}\n空气质量指数🌏：{{aqi.DATA}}\nPM2.5☘️：{{pm25.DATA}}\n气温(最高/最低)🌡️：{{max_temperature.DATA}}℃ / {{min_temperature.DATA}}℃\n\n💘 今天是我们恋爱的第 {{love_day.DATA}} 天\n� 今天是我们相识的第 {{marry_day.DATA}} 天\n� {{wx_birthday_0.DATA}}\n� {{wx_birthday_1.DATA}}\n💖 {{holidaytts.DATA}}\n\n� {{one_talk.DATA}} -- {{talk_from.DATA}}\n🪐 {{comprehensive_horoscope.DATA}}"
     }
   ],
 
@@ -29,7 +24,7 @@
     {
       "name": "宝贝儿&夫人&老婆&最爱的人&anyone everyone",
       "id": "<REPLACE_OPENID_USER_1>",
-      "wechatTemplateId": "<REPLACE_WECHAT_TEMPLATE_ID>",
+      "wechatTemplateId": "<REPLACE_WECHAT_TEMPLATE_ID_USER_1>",
       "useTemplateId": "0001",
       "province": "北京",
       "city": "海淀",
@@ -48,7 +43,7 @@
     {
       "name": "xnhyacinth",
       "id": "<REPLACE_OPENID_USER_2>",
-      "wechatTemplateId": "<REPLACE_WECHAT_TEMPLATE_ID>",
+      "wechatTemplateId": "<REPLACE_WECHAT_TEMPLATE_ID_USER_2>",
       "useTemplateId": "0001",
       "province": "北京",
       "city": "海淀",
