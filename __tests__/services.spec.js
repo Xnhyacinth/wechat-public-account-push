@@ -430,17 +430,29 @@ describe('services', () => {
     expect(await getCIBA()).toEqual({})
     axios.get = async () => ({
       status: 200,
+      data: {
+        content: 'hello world',
+        note: '你好世界',
+      },
     })
-    expect(await getCIBA()).toBeUndefined()
-    axios.get = async () => ({
-      status: 200,
-      data: 'test',
-    })
-    expect(await getCIBA()).toEqual('test')
+    const ciba = await getCIBA()
+    expect(ciba.noteEn).toEqual('hello world')
+    expect(ciba.noteCh).toEqual('你好世界')
+    expect(Array.isArray(ciba.wxNoteEn)).toBe(true)
+    expect(Array.isArray(ciba.wxNoteCh)).toBe(true)
   })
   test('getOneTalk', async () => {
     config.SWITCH = {}
-    expect(await getOneTalk('动画')).toEqual('test')
+    axios.get = async () => ({
+      status: 200,
+      data: {
+        hitokoto: 'test',
+        from: '出处',
+      },
+    })
+    let one = await getOneTalk('动画')
+    expect(one.hitokoto).toEqual('test')
+    expect(Array.isArray(one.wx_one_talk)).toBe(true)
     config.SWITCH.oneTalk = false
     expect(await getOneTalk('动画')).toEqual({})
     config.SWITCH.oneTalk = true
@@ -451,9 +463,12 @@ describe('services', () => {
     expect(await getOneTalk('xxx')).toEqual({})
     axios.get = async () => ({
       status: 200,
-      data: 'test',
+      data: {
+        hitokoto: 'test',
+      },
     })
-    expect(await getOneTalk('动画')).toEqual('test')
+    one = await getOneTalk('动画')
+    expect(one.hitokoto).toEqual('test')
   })
   test('getWordsFromApiShadiao', async () => {
     config.SWITCH.earthyLoveWords = true
@@ -487,11 +502,11 @@ describe('services', () => {
       },
     })
     config.SWITCH = {}
-    expect(await getEarthyLoveWords()).toEqual('彩虹屁')
+    expect((await getEarthyLoveWords()).earthyLoveWords).toEqual('彩虹屁')
     config.SWITCH.earthyLoveWords = false
     expect(await getEarthyLoveWords()).toEqual('')
     config.SWITCH.earthyLoveWords = true
-    expect(await getEarthyLoveWords()).toEqual('彩虹屁')
+    expect((await getEarthyLoveWords()).earthyLoveWords).toEqual('彩虹屁')
     axios.get = async () => ({
       data: {
         data: {
@@ -502,9 +517,9 @@ describe('services', () => {
     config.SWITCH.momentCopyrighting = false
     expect(await getMomentCopyrighting()).toEqual('')
     config.SWITCH = {}
-    expect(await getMomentCopyrighting()).toEqual('朋友圈文案')
+    expect((await getMomentCopyrighting()).momentCopyrighting).toEqual('朋友圈文案')
     config.SWITCH.momentCopyrighting = true
-    expect(await getMomentCopyrighting()).toEqual('朋友圈文案')
+    expect((await getMomentCopyrighting()).momentCopyrighting).toEqual('朋友圈文案')
     axios.get = async () => ({
       data: {
         data: {
@@ -513,25 +528,25 @@ describe('services', () => {
       },
     })
     config.SWITCH = {}
-    expect(await getPoisonChickenSoup()).toEqual('毒鸡汤')
+    expect((await getPoisonChickenSoup()).poisonChickenSoup).toEqual('毒鸡汤')
     config.SWITCH.poisonChickenSoup = false
     expect(await getPoisonChickenSoup()).toEqual('')
     config.SWITCH.poisonChickenSoup = true
-    expect(await getPoisonChickenSoup()).toEqual('毒鸡汤')
+    expect((await getPoisonChickenSoup()).poisonChickenSoup).toEqual('毒鸡汤')
   })
   test('getBirthdayMessage', () => {
     config.SWITCH = {}
-    expect(getBirthdayMessage()).toEqual('')
+    expect(getBirthdayMessage().resMessage).toEqual('')
     config.SWITCH.birthdayMessage = true
     config.FESTIVALS = null
     MockDate.set('2022-09-03')
-    expect(getBirthdayMessage([])).toEqual('')
+    expect(getBirthdayMessage([]).resMessage).toEqual('')
     expect(getBirthdayMessage([{
       type: '节日',
       name: '结婚纪念日',
       year: '2020',
       date: '09-03',
-    }])).toEqual('今天是 结婚纪念日 哦，要开心！ \n')
+    }]).resMessage).toEqual('今天是 「结婚纪念日」 哦，要开心！ \n')
     config.FESTIVALS = [
       {
         type: '*生日', name: '老婆', year: '1999', date: '09-19', isShowAge: true,
@@ -547,7 +562,7 @@ describe('services', () => {
       },
     ]
     config.FESTIVALS_LIMIT = 4
-    expect(getBirthdayMessage()).toEqual('今天是 结婚纪念日 哦，要开心！ \n距离 李四 的26岁生日还有28天 \n距离 老婆 的23岁生日还有41天 \n距离 被搭讪纪念日 还有363天 \n'.trimStart())
+    expect(getBirthdayMessage().resMessage).toEqual('今天是 「结婚纪念日」 哦，要开心！ \n距离 「李四」 的26岁公历生日还有28天 \n距离 「老婆」 的23岁阴历生日还有41天 \n距离 「被搭讪纪念日」 还有363天 \n'.trimStart())
     MockDate.reset()
     MockDate.set('2022-09-31')
     config.FESTIVALS = [
@@ -564,7 +579,7 @@ describe('services', () => {
         type: '节日', name: '被搭讪纪念日', year: '2021', date: '09-01',
       },
     ]
-    expect(getBirthdayMessage()).toEqual('今天是 李四 的26岁生日哦，祝李四生日快乐！ \n距离 老婆 的23岁生日还有13天 \n距离 被搭讪纪念日 还有335天 \n距离 结婚纪念日 还有337天 \n'.trimStart())
+    expect(getBirthdayMessage().resMessage).toEqual('今天是 「李四」 的26岁公历生日哦，祝李四生日快乐！ \n距离 「老婆」 的23岁阴历生日还有13天 \n距离 「被搭讪纪念日」 还有335天 \n距离 「结婚纪念日」 还有337天 \n'.trimStart())
     MockDate.reset()
     MockDate.set('1999-10-27')
     config.FESTIVALS = [
@@ -581,11 +596,11 @@ describe('services', () => {
         type: '节日', name: '被搭讪纪念日', year: '2021', date: '09-01',
       },
     ]
-    expect(getBirthdayMessage()).toEqual('今天是 老婆 的0岁生日哦，祝老婆生日快乐！ \n距离 被搭讪纪念日 还有310天 \n距离 结婚纪念日 还有312天 \n距离 李四 的4岁生日还有340天 \n'.trimStart())
+    expect(getBirthdayMessage().resMessage).toEqual('今天是 「老婆」 的0岁阴历生日哦，祝老婆生日快乐！ \n距离 「被搭讪纪念日」 还有310天 \n距离 「结婚纪念日」 还有312天 \n距离 「李四」 的4岁公历生日还有340天 \n'.trimStart())
     MockDate.reset()
     config.FESTIVALS_LIMIT = -1
     MockDate.set('2022-09-03')
-    expect(getBirthdayMessage()).toEqual('')
+    expect(getBirthdayMessage().resMessage).toEqual('')
     MockDate.reset()
     config.FESTIVALS_LIMIT = 4
     config.FESTIVALS = [
@@ -602,9 +617,9 @@ describe('services', () => {
         type: '测试日', name: '被搭讪纪念日', year: '2021', date: '09-01',
       },
     ]
-    expect(getBirthdayMessage()).toEqual('')
+    expect(getBirthdayMessage().resMessage).toEqual('')
     config.FESTIVALS = null
-    expect(getBirthdayMessage()).toEqual('')
+    expect(getBirthdayMessage().resMessage).toEqual('')
     MockDate.set('1999-10-28')
     config.FESTIVALS = [
       {
@@ -620,7 +635,7 @@ describe('services', () => {
         type: '节日', name: '被搭讪纪念日', year: '2021', date: '09-01',
       },
     ]
-    expect(getBirthdayMessage()).toEqual('距离 被搭讪纪念日 还有309天 \n距离 结婚纪念日 还有311天 \n距离 李四 的4岁生日还有339天 \n距离 老婆 的生日还有354天 \n'.trimStart())
+    expect(getBirthdayMessage().resMessage).toEqual('距离 「被搭讪纪念日」 还有309天 \n距离 「结婚纪念日」 还有311天 \n距离 「李四」 的4岁公历生日还有339天 \n距离 「老婆」 的阴历生日还有354天 \n'.trimStart())
     MockDate.set('1999-10-27')
     config.FESTIVALS = [
       {
@@ -636,7 +651,7 @@ describe('services', () => {
         type: '节日', name: '被搭讪纪念日', year: '2021', date: '09-01',
       },
     ]
-    expect(getBirthdayMessage()).toEqual('今天是 老婆 的生日哦，祝老婆生日快乐！ \n距离 李四 的0岁生日还有100天 \n距离 被搭讪纪念日 还有310天 \n距离 结婚纪念日 还有312天 \n'.trimStart())
+    expect(getBirthdayMessage().resMessage).toEqual('今天是 「老婆」 的阴历生日哦，祝老婆生日快乐！ \n距离 「李四」 的0岁阴历生日还有100天 \n距离 「被搭讪纪念日」 还有310天 \n距离 「结婚纪念日」 还有312天 \n'.trimStart())
     config.SWITCH = {
       birthdayMessage: false,
     }
@@ -1040,9 +1055,14 @@ describe('services', () => {
     })
     expect(await getPoetry()).toEqual({
       author: '',
-      content: '',
+      content: '举头望明月，低头思故乡。',
       dynasty: '',
       title: '',
+      wxContent: [{
+        color: '#000000',
+        name: 'wx_poetry_content_0',
+        value: '举头望明月，低头思故乡。',
+      }],
     })
     axios.get = async () => ({
       data: {
@@ -1062,6 +1082,11 @@ describe('services', () => {
       author: '李白',
       dynasty: '唐',
       title: '静夜思',
+      wxContent: [{
+        color: '#000000',
+        name: 'wx_poetry_content_0',
+        value: '床前明月光',
+      }],
     })
     config.SWITCH = {
       poetry: false,
@@ -1146,12 +1171,15 @@ describe('services', () => {
   })
   test('getHolidaytts', async () => {
     config.SWITCH = {}
-    expect(await getHolidaytts()).toEqual(null)
+    let holiday = await getHolidaytts()
+    expect(holiday.holidaytts).toEqual('嘿嘿，今天不告诉你~')
+    expect(Array.isArray(holiday.wxHolidaytts)).toBe(true)
     config.SWITCH.holidaytts = true
     axios.get = async () => {
       throw new Error()
     }
-    expect(await getHolidaytts()).toEqual(null)
+    holiday = await getHolidaytts()
+    expect(holiday.holidaytts).toEqual('嘿嘿，今天不告诉你~')
     axios.get = async () => ({
       status: 200,
       data: {
@@ -1159,7 +1187,8 @@ describe('services', () => {
         tts: 'xxx',
       },
     })
-    expect(await getHolidaytts()).toEqual('xxx')
+    holiday = await getHolidaytts()
+    expect(holiday.holidaytts).toEqual('xxx')
     axios.get = async () => ({
       status: 200,
       data: {
@@ -1167,7 +1196,8 @@ describe('services', () => {
         tts: 'xxx',
       },
     })
-    expect(await getHolidaytts()).toEqual(null)
+    holiday = await getHolidaytts()
+    expect(holiday.holidaytts).toEqual('嘿嘿，今天不告诉你~')
     config.SWITCH = {
       holidaytts: false,
     }
@@ -1217,7 +1247,7 @@ describe('services', () => {
         ],
         even: [],
       },
-    })).toEqual('08-00:09:35 高等数学\n09:50-11:35 高等物理')
+    }).schedule).toEqual('08-00:09:35 高等数学\n09:50-11:35 高等物理')
     expect(getCourseSchedule({
       benchmark: {
         date: '2022-09-23',
@@ -1238,7 +1268,7 @@ describe('services', () => {
         ],
         odd: [],
       },
-    })).toEqual('08-00:09:35 高等数学\n09:50-11:35 高等物理')
+    }).schedule).toEqual('08-00:09:35 高等数学\n09:50-11:35 高等物理')
     expect(getCourseSchedule({
       benchmark: {
         date: '2022-09-26',
@@ -1259,7 +1289,7 @@ describe('services', () => {
         ],
         odd: [],
       },
-    })).toEqual('08-00:09:35 高等数学\n09:50-11:35 高等物理')
+    }).schedule).toEqual('08-00:09:35 高等数学\n09:50-11:35 高等物理')
     expect(getCourseSchedule({
       benchmark: {
         date: '2022-09-18',
@@ -1280,7 +1310,7 @@ describe('services', () => {
         ],
         odd: [],
       },
-    })).toEqual('08-00:09:35 高等数学\n09:50-11:35 高等物理')
+    }).schedule).toEqual('08-00:09:35 高等数学\n09:50-11:35 高等物理')
     expect(getCourseSchedule({
       benchmark: {
         date: '2022-09-18',
@@ -1295,7 +1325,7 @@ describe('services', () => {
         ],
         odd: [],
       },
-    })).toEqual('')
+    }).schedule).toEqual('')
     MockDate.reset()
   })
   test('getWeatherIcon', () => {
